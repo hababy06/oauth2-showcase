@@ -17,4 +17,12 @@ spring:
         provider:
           # ?????? 'auth-server' ? provider?????? auth-server-spring
           auth-server:
-            issuer-uri: http://localhost:9000
+            issuer-uri: http://127.0.0.1:9000
+
+logging:
+  level:
+    root: INFO
+    org.springframework.security: DEBUG
+    org.springframework.security.oauth2: TRACE
+    org.springframework.web: DEBUG
+    com.example.mycloudhubui: DEBUG
