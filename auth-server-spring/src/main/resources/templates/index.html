@@ -1,0 +1,29 @@
+<!DOCTYPE html>
+<html lang="zh-Hant" xmlns:th="http://www.thymeleaf.org" xmlns:sec="http://www.thymeleaf.org/extras/spring-security">
+<head>
+    <meta charset="UTF-8">
+    <title>MyCloudHub</title>
+    <style>
+        body { font-family: sans-serif; text-align: center; padding-top: 50px; }
+        a, button { font-size: 1.2em; padding: 10px 20px; }
+        form { margin-top: 20px; }
+    </style>
+</head>
+<body>
+<h1>歡迎來到 MyCloudHub</h1>
+
+<div sec:authorize="!isAuthenticated()">
+    <p>您需要登入才能繼續。</p>
+    <p><a th:href="@{/oauth2/authorization/my-client-oidc}">使用 MyAuthServer 登入</a></p>
+</div>
+
+<div sec:authorize="isAuthenticated()">
+    <p style="font-size: 1.5em;">您好, <strong th:text="${username}">使用者</strong>!</p>
+
+    <form th:action="@{/logout}" method="post">
+        <button type="submit">登出</button>
+    </form>
+</div>
+
+</body>
+</html>

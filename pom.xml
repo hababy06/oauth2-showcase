@@ -13,6 +13,7 @@
         <module>note-service</module>
         <module>task-service</module>
         <module>auth-server-spring</module>
+        <module>my-cloud-hub-ui</module>
     </modules>
 
     <parent>

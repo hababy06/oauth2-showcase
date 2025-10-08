@@ -97,6 +97,7 @@ public class SecurityConfig {
                 .authorizationGrantType(AuthorizationGrantType.CLIENT_CREDENTIALS)
                 .redirectUri("http://127.0.0.1:8081/login/oauth2/code/my-client") // note-service 的回調
                 .redirectUri("http://127.0.0.1:8082/login/oauth2/code/my-client") // task-service 的回調
+                .redirectUri("http://127.0.0.1:8080/login/oauth2/code/my-client-oidc")
                 .redirectUri("https://oauth.pstmn.io/v1/callback") // Postman 的回調，方便測試
                 .scope(OidcScopes.OPENID)
                 .scope("read")

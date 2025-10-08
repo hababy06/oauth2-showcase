@@ -1,0 +1,20 @@
+server:
+  port: 8080 # ??? BFF ????? 8080 ??
+
+spring:
+  security:
+    oauth2:
+      client:
+        registration:
+          # ???????????????
+          my-client-oidc:
+            provider: auth-server # ??????? provider
+            client-id: my-client # ??? auth-server-spring ???? clientId ??
+            client-secret: secret # ??? auth-server-spring ???? clientSecret ??
+            authorization-grant-type: authorization_code
+            redirect-uri: "{baseUrl}/login/oauth2/code/{registrationId}" # Spring ?????
+            scope: openid, read, write
+        provider:
+          # ?????? 'auth-server' ? provider?????? auth-server-spring
+          auth-server:
+            issuer-uri: http://localhost:9000
