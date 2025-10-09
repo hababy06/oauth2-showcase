@@ -1,10 +1,9 @@
 package com.example.noteservice.controller;
 
+import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.security.oauth2.jwt.Jwt;
-import org.springframework.web.bind.annotation.GetMapping;
-import org.springframework.web.bind.annotation.RequestMapping;
-import org.springframework.web.bind.annotation.RestController;
+import org.springframework.web.bind.annotation.*;
 
 import java.util.Collections;
 import java.util.Map;
@@ -15,9 +14,20 @@ public class NoteController {
 
     @GetMapping
     public Map<String, Object> getNotes(@AuthenticationPrincipal Jwt jwt) {
-        // @AuthenticationPrincipal Jwt 可以直接注入解碼後的 JWT 物件
-        // 我們可以從中獲取使用者名稱 (sub claim)
         String username = jwt.getSubject();
-        return Collections.singletonMap("notes", "這是 " + username + " 的筆記列表。");
+        // 從 JWT 的 claims 中讀取權限
+        var authorities = jwt.getClaimAsStringList("authorities");
+        return Map.of(
+                "notes", "這是 " + username + " 的筆記列表。",
+                "authorities", authorities
+        );
+    }
+
+    // 新增一個只有 ADMIN 角色才能訪問的端點
+    @DeleteMapping("/{id}")
+    @PreAuthorize("hasRole('ADMIN')") // <-- 魔法發生的地方！
+    public Map<String, String> deleteNote(@PathVariable String id, @AuthenticationPrincipal Jwt jwt) {
+        String adminName = jwt.getSubject();
+        return Map.of("message", "管理員 " + adminName + " 成功刪除了 ID 為 " + id + " 的筆記。");
     }
 }

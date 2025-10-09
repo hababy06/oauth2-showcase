@@ -90,12 +90,19 @@ public class SecurityConfig {
     // --- 以下其他 Bean 保持不變 ---
     @Bean
     public UserDetailsService userDetailsService() {
-        var userDetails = User.builder()
-                .username("user")
+        // 建立普通使用者
+        var user = User.withUsername("user")
                 .password(passwordEncoder().encode("password"))
-                .roles("USER")
+                .roles("USER") // 賦予 USER 角色
                 .build();
-        return new InMemoryUserDetailsManager(userDetails);
+
+        // 建立管理員
+        var admin = User.withUsername("admin")
+                .password(passwordEncoder().encode("password"))
+                .roles("USER", "ADMIN") // 賦予 USER 和 ADMIN 兩個角色
+                .build();
+
+        return new InMemoryUserDetailsManager(user, admin);
     }
 
 
@@ -153,36 +160,26 @@ public class SecurityConfig {
                 .build();
     }
 
-    @Bean
-    public OAuth2AuthorizationConsentService authorizationConsentService() {
-        return new InMemoryOAuth2AuthorizationConsentService();
-    }
+//    @Bean
+//    public JwtDecoder jwtDecoder(JWKSource<SecurityContext> jwkSource) {
+//        return OAuth2AuthorizationServerConfiguration.jwtDecoder(jwkSource);
+//    }
 
-    @Bean
-    public OAuth2AuthorizationService authorizationService() {
-        return new InMemoryOAuth2AuthorizationService();
-    }
-
-    @Bean
-    public JwtDecoder jwtDecoder(JWKSource<SecurityContext> jwkSource) {
-        return OAuth2AuthorizationServerConfiguration.jwtDecoder(jwkSource);
-    }
-
-    @Bean
-    public OAuth2TokenCustomizer<JwtEncodingContext> tokenCustomizer() {
-        return context -> {
-            // 只對 ID Token 進行自訂
-            if (context.getTokenType().getValue().equals("id_token")) {
-                // 獲取當前認證的用戶名
-                String username = context.getPrincipal().getName();
-
-                // 將用戶資訊加入 Claims
-                context.getClaims().claim("name", username);
-                context.getClaims().claim("preferred_username", username);
-                context.getClaims().claim("email", username + "@example.com");
-            }
-        };
-    }
+//    @Bean
+//    public OAuth2TokenCustomizer<JwtEncodingContext> tokenCustomizer() {
+//        return context -> {
+//            // 只對 ID Token 進行自訂
+//            if (context.getTokenType().getValue().equals("id_token")) {
+//                // 獲取當前認證的用戶名
+//                String username = context.getPrincipal().getName();
+//
+//                // 將用戶資訊加入 Claims
+//                context.getClaims().claim("name", username);
+//                context.getClaims().claim("preferred_username", username);
+//                context.getClaims().claim("email", username + "@example.com");
+//            }
+//        };
+//    }
 
 
 }
