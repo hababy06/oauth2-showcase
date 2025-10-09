@@ -26,4 +26,15 @@ public class NoteApiClient {
             return Map.of("error", "無法獲取筆記列表: " + e.getMessage());
         }
     }
+
+    // ✨ START: 新增的刪除方法 ✨
+    public Map<String, String> deleteNoteById(String id) {
+        return webClient.delete()
+                .uri(NOTE_API_URL + "/" + id)
+                .retrieve()
+                // 將回傳的 JSON 轉換為 Map
+                .bodyToMono(Map.class)
+                .block();
+    }
+    // ✨ END: 新增的刪除方法
 }

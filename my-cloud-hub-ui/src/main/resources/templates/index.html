@@ -1,14 +1,14 @@
 <!DOCTYPE html>
-<html lang="zh-Hant" xmlns:th="http://www.thymeleaf.org" xmlns:sec="http://www.thymeleaf.org/extras/spring-security">
+<html xmlns:th="http://www.thymeleaf.org" xmlns:sec="http://www.thymeleaf.org/extras/spring-security">
 <head>
     <meta charset="UTF-8">
     <title>MyCloudHub</title>
     <style>
         body { font-family: sans-serif; text-align: center; padding: 20px 50px; }
-        .container { display: flex; justify-content: space-around; text-align: left; }
+        .container { display: flex; justify-content: space-around; text-align: left; margin-top: 30px; }
         .service-box { border: 1px solid #ccc; border-radius: 8px; padding: 20px; width: 45%; }
         pre { background-color: #f4f4f4; padding: 10px; border-radius: 4px; white-space: pre-wrap; word-wrap: break-word; }
-        form { margin-top: 20px; }
+        button { padding: 10px 15px; cursor: pointer; border-radius: 5px; border: none; }
     </style>
 </head>
 <body>
@@ -26,28 +26,93 @@
     <div class="container">
         <div class="service-box">
             <h2>來自 Note Service (Port 8081)</h2>
-            <div th:if="${notesResponse.containsKey('error')}">
+            <!-- ✅ 修正：使用 #maps.containsKey() 檢查是否有error -->
+            <div th:if="${#maps.containsKey(notesResponse, 'error')}">
                 <p style="color: red;" th:text="${notesResponse.error}"></p>
             </div>
-            <div th:unless="${notesResponse.containsKey('error')}">
+            <div th:unless="${#maps.containsKey(notesResponse, 'error')}">
                 <pre><code th:text="${notesResponse}"></code></pre>
+
+                <!-- Admin專用刪除按鈕 -->
+                <div sec:authorize="hasRole('ADMIN')" style="margin-top: 15px;">
+                    <form onsubmit="deleteNote(event, '123')">
+                        <button type="submit" style="background-color: #dc3545; color: white;">
+                            (Admin 專用) 刪除 ID 為 123 的筆記
+                        </button>
+                    </form>
+                </div>
             </div>
         </div>
+
         <div class="service-box">
             <h2>來自 Task Service (Port 8082)</h2>
-            <div th:if="${tasksResponse.containsKey('error')}">
+            <!-- ✅ 修正：同樣改用 #maps.containsKey() -->
+            <div th:if="${#maps.containsKey(tasksResponse, 'error')}">
                 <p style="color: red;" th:text="${tasksResponse.error}"></p>
             </div>
-            <div th:unless="${tasksResponse.containsKey('error')}">
+            <div th:unless="${#maps.containsKey(tasksResponse, 'error')}">
                 <pre><code th:text="${tasksResponse}"></code></pre>
             </div>
         </div>
     </div>
 
     <form th:action="@{/logout}" method="post">
-        <button type="submit" style="margin-top: 25px;">登出</button>
+        <button type="submit" style="margin-top: 25px; background-color: #6c757d; color: white;">登出</button>
     </form>
 </div>
 
+<script>
+    function deleteNote(event, noteId) {
+        event.preventDefault();
+
+        if (!confirm('您確定要以 Admin 身份刪除 ID 為 ' + noteId + ' 的筆記嗎？')) {
+            return;
+        }
+
+        const csrfToken = getCsrfToken();
+        if (!csrfToken) {
+            alert('錯誤：找不到 CSRF Token，無法發送請求。\n請重新整理頁面。');
+            console.error('Cookie內容:', document.cookie);
+            return;
+        }
+
+        console.log('發送DELETE請求，Token:', csrfToken);
+
+        fetch('/api/notes/' + noteId, {
+            method: 'DELETE',
+            headers: {
+                'X-XSRF-TOKEN': csrfToken
+            }
+        })
+            .then(response => {
+                console.log('回應狀態:', response.status);
+                if (!response.ok) {
+                    return response.text().then(text => {
+                        throw new Error('錯誤狀態：' + response.status + ' - ' + text);
+                    });
+                }
+                return response.json();
+            })
+            .then(data => {
+                alert('成功刪除！\n回應內容：\n' + JSON.stringify(data, null, 2));
+                location.reload();
+            })
+            .catch(error => {
+                console.error('刪除請求失敗:', error);
+                alert('刪除失敗：\n' + error.message);
+            });
+    }
+
+    function getCsrfToken() {
+        const cookies = document.cookie.split(';');
+        for (let cookie of cookies) {
+            const [name, value] = cookie.trim().split('=');
+            if (name === 'XSRF-TOKEN') {
+                return decodeURIComponent(value);
+            }
+        }
+        return null;
+    }
+</script>
 </body>
 </html>

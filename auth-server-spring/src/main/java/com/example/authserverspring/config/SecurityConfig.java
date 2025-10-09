@@ -17,6 +17,7 @@ import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.security.oauth2.core.AuthorizationGrantType;
 import org.springframework.security.oauth2.core.ClientAuthenticationMethod;
 import org.springframework.security.oauth2.core.oidc.OidcScopes;
+import org.springframework.security.oauth2.core.oidc.endpoint.OidcParameterNames;
 import org.springframework.security.oauth2.jwt.JwtDecoder;
 import org.springframework.security.oauth2.server.authorization.client.InMemoryRegisteredClientRepository;
 import org.springframework.security.oauth2.server.authorization.client.RegisteredClient;
@@ -34,7 +35,15 @@ import org.springframework.security.oauth2.server.authorization.OAuth2Authorizat
 import org.springframework.security.oauth2.server.authorization.InMemoryOAuth2AuthorizationConsentService;
 import org.springframework.security.oauth2.server.authorization.OAuth2AuthorizationService;
 import org.springframework.security.oauth2.server.authorization.InMemoryOAuth2AuthorizationService;
-
+import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
+import org.springframework.security.core.Authentication;
+import org.springframework.security.core.GrantedAuthority;
+import org.springframework.security.core.userdetails.UserDetails;
+import org.springframework.security.oauth2.server.authorization.token.JwtEncodingContext;
+import org.springframework.security.oauth2.server.authorization.token.OAuth2TokenCustomizer;
+import java.util.Collections;
+import java.util.Set;
+import java.util.stream.Collectors;
 
 import java.security.KeyPair;
 import java.security.KeyPairGenerator;
@@ -98,7 +107,7 @@ public class SecurityConfig {
 
         // 建立管理員
         var admin = User.withUsername("admin")
-                .password(passwordEncoder().encode("password"))
+                .password(passwordEncoder().encode("a"))
                 .roles("USER", "ADMIN") // 賦予 USER 和 ADMIN 兩個角色
                 .build();
 
@@ -168,15 +177,29 @@ public class SecurityConfig {
     @Bean
     public OAuth2TokenCustomizer<JwtEncodingContext> tokenCustomizer() {
         return context -> {
-            // 只對 ID Token 進行自訂
-            if (context.getTokenType().getValue().equals("id_token")) {
-                // 獲取當前認證的用戶名
-                String username = context.getPrincipal().getName();
+            // 當 token type 是 access_token 或 id_token 時，都加入 authorities
+            if (context.getTokenType().getValue().equals("access_token") ||
+                    context.getTokenType().getValue().equals(OidcParameterNames.ID_TOKEN)) {
 
-                // 將用戶資訊加入 Claims
-                context.getClaims().claim("name", username);
-                context.getClaims().claim("preferred_username", username);
-                context.getClaims().claim("email", username + "@example.com");
+                Authentication principal = context.getPrincipal();
+                Set<String> authorities = Collections.emptySet();
+
+                // 檢查 principal 的細節，更明確地找出 UserDetails
+                if (principal instanceof UsernamePasswordAuthenticationToken) {
+                    Object principalDetails = principal.getPrincipal();
+                    if (principalDetails instanceof UserDetails) {
+                        authorities = ((UserDetails) principalDetails).getAuthorities().stream()
+                                .map(GrantedAuthority::getAuthority)
+                                .collect(Collectors.toSet());
+                    }
+                } else {
+                    // 作為備用方案，嘗試原始的方法
+                    authorities = principal.getAuthorities().stream()
+                            .map(GrantedAuthority::getAuthority)
+                            .collect(Collectors.toSet());
+                }
+
+                context.getClaims().claim("authorities", authorities);
             }
         };
     }
