@@ -7,6 +7,8 @@ import org.springframework.web.bind.annotation.*;
 
 import java.util.Collections;
 import java.util.Map;
+import java.util.Collections;
+import java.util.List;
 
 @RestController
 @RequestMapping("/api/notes")
@@ -16,7 +18,13 @@ public class NoteController {
     public Map<String, Object> getNotes(@AuthenticationPrincipal Jwt jwt) {
         String username = jwt.getSubject();
         // 從 JWT 的 claims 中讀取權限
-        var authorities = jwt.getClaimAsStringList("authorities");
+        List<String> authorities = jwt.getClaimAsStringList("authorities");
+
+        // ✨ 增加保護：如果 authorities 是 null，就給它一個空的列表
+        if (authorities == null) {
+            authorities = Collections.emptyList();
+        }
+
         return Map.of(
                 "notes", "這是 " + username + " 的筆記列表。",
                 "authorities", authorities

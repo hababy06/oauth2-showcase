@@ -165,21 +165,21 @@ public class SecurityConfig {
 //        return OAuth2AuthorizationServerConfiguration.jwtDecoder(jwkSource);
 //    }
 
-//    @Bean
-//    public OAuth2TokenCustomizer<JwtEncodingContext> tokenCustomizer() {
-//        return context -> {
-//            // 只對 ID Token 進行自訂
-//            if (context.getTokenType().getValue().equals("id_token")) {
-//                // 獲取當前認證的用戶名
-//                String username = context.getPrincipal().getName();
-//
-//                // 將用戶資訊加入 Claims
-//                context.getClaims().claim("name", username);
-//                context.getClaims().claim("preferred_username", username);
-//                context.getClaims().claim("email", username + "@example.com");
-//            }
-//        };
-//    }
+    @Bean
+    public OAuth2TokenCustomizer<JwtEncodingContext> tokenCustomizer() {
+        return context -> {
+            // 只對 ID Token 進行自訂
+            if (context.getTokenType().getValue().equals("id_token")) {
+                // 獲取當前認證的用戶名
+                String username = context.getPrincipal().getName();
+
+                // 將用戶資訊加入 Claims
+                context.getClaims().claim("name", username);
+                context.getClaims().claim("preferred_username", username);
+                context.getClaims().claim("email", username + "@example.com");
+            }
+        };
+    }
 
 
 }

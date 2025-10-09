@@ -4,8 +4,10 @@
     <meta charset="UTF-8">
     <title>MyCloudHub</title>
     <style>
-        body { font-family: sans-serif; text-align: center; padding-top: 50px; }
-        a, button { font-size: 1.2em; padding: 10px 20px; }
+        body { font-family: sans-serif; text-align: center; padding: 20px 50px; }
+        .container { display: flex; justify-content: space-around; text-align: left; }
+        .service-box { border: 1px solid #ccc; border-radius: 8px; padding: 20px; width: 45%; }
+        pre { background-color: #f4f4f4; padding: 10px; border-radius: 4px; white-space: pre-wrap; word-wrap: break-word; }
         form { margin-top: 20px; }
     </style>
 </head>
@@ -20,8 +22,30 @@
 <div sec:authorize="isAuthenticated()">
     <p style="font-size: 1.5em;">您好, <strong th:text="${username}">使用者</strong>!</p>
 
+    <hr style="margin: 20px 0;">
+    <div class="container">
+        <div class="service-box">
+            <h2>來自 Note Service (Port 8081)</h2>
+            <div th:if="${notesResponse.containsKey('error')}">
+                <p style="color: red;" th:text="${notesResponse.error}"></p>
+            </div>
+            <div th:unless="${notesResponse.containsKey('error')}">
+                <pre><code th:text="${notesResponse}"></code></pre>
+            </div>
+        </div>
+        <div class="service-box">
+            <h2>來自 Task Service (Port 8082)</h2>
+            <div th:if="${tasksResponse.containsKey('error')}">
+                <p style="color: red;" th:text="${tasksResponse.error}"></p>
+            </div>
+            <div th:unless="${tasksResponse.containsKey('error')}">
+                <pre><code th:text="${tasksResponse}"></code></pre>
+            </div>
+        </div>
+    </div>
+
     <form th:action="@{/logout}" method="post">
-        <button type="submit">登出</button>
+        <button type="submit" style="margin-top: 25px;">登出</button>
     </form>
 </div>
 

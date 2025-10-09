@@ -1,0 +1,29 @@
+package com.example.mycloudhubui.config;
+
+import org.springframework.context.annotation.Bean;
+import org.springframework.context.annotation.Configuration;
+import org.springframework.security.oauth2.client.registration.ClientRegistrationRepository;
+import org.springframework.security.oauth2.client.web.OAuth2AuthorizedClientRepository;
+import org.springframework.security.oauth2.client.web.reactive.function.client.ServletOAuth2AuthorizedClientExchangeFilterFunction;
+import org.springframework.web.reactive.function.client.WebClient;
+
+@Configuration
+public class WebClientConfig {
+
+    @Bean
+    public WebClient webClient(ClientRegistrationRepository clientRegistrationRepository,
+                               OAuth2AuthorizedClientRepository authorizedClientRepository) {
+        // 這就是魔法發生的地方！
+        // 這個 Filter 會攔截 WebClient 的請求
+        // 並自動從 Security Context 中取出 Access Token，附加到 Authorization Header 上
+        ServletOAuth2AuthorizedClientExchangeFilterFunction oauth2 =
+                new ServletOAuth2AuthorizedClientExchangeFilterFunction(clientRegistrationRepository,
+                        authorizedClientRepository);
+
+        oauth2.setDefaultOAuth2AuthorizedClient(true);
+
+        return WebClient.builder()
+                .apply(oauth2.oauth2Configuration())
+                .build();
+    }
+}
