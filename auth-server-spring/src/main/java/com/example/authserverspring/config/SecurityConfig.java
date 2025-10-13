@@ -132,8 +132,7 @@ public class SecurityConfig {
 //                .redirectUri("http://127.0.0.1:8080/login/oauth2/code/my-cloud-hub-ui")
                 .redirectUri("http://localhost:8080/login/oauth2/code/my-cloud-hub-ui")
                 .scope(OidcScopes.OPENID)
-                .scope("read")
-                .scope("write")
+                .scope(OidcScopes.PROFILE)
                 .clientSettings(ClientSettings.builder().requireAuthorizationConsent(false).build())
                 .build();
         return new InMemoryRegisteredClientRepository(registeredClient);

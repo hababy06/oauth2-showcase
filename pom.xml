@@ -50,7 +50,7 @@
 
     <build>
         <filters>
-            <filter>${project.basedir}/profiles/application-${env}.properties</filter>
+            <filter>../profiles/application-${env}.properties</filter>
         </filters>
 
         <resources>
@@ -72,6 +72,12 @@
             </resource>
         </resources>
 
+        <plugins>
+            <plugin>
+                <groupId>org.springframework.boot</groupId>
+                <artifactId>spring-boot-maven-plugin</artifactId>
+            </plugin>
+        </plugins>
     </build>
 
 </project>

@@ -91,13 +91,47 @@ public class SecurityConfig {
                     OidcUserAuthority oidcUserAuthority = (OidcUserAuthority) authority;
                     mappedAuthorities.add(oidcUserAuthority);
 
-                    // ✅ 從ID Token的authorities claim提取自訂權限
+                    // ✅ 從ID Token的authorities claim提取自訂權限（Auth Server 模式）
                     List<String> customAuthorities = oidcUserAuthority.getIdToken().getClaim("authorities");
-
                     if (customAuthorities != null) {
                         mappedAuthorities.addAll(customAuthorities.stream()
                                 .map(SimpleGrantedAuthority::new)
                                 .collect(Collectors.toList()));
+                    }
+
+                    // ✅ 從Keycloak的realm_access.roles提取角色（Keycloak 模式）
+                    Object realmAccess = oidcUserAuthority.getIdToken().getClaim("realm_access");
+                    if (realmAccess instanceof java.util.Map) {
+                        @SuppressWarnings("unchecked")
+                        java.util.Map<String, Object> realmAccessMap = (java.util.Map<String, Object>) realmAccess;
+                        Object roles = realmAccessMap.get("roles");
+                        if (roles instanceof java.util.List) {
+                            @SuppressWarnings("unchecked")
+                            java.util.List<String> roleList = (java.util.List<String>) roles;
+                            mappedAuthorities.addAll(roleList.stream()
+                                    .map(role -> new SimpleGrantedAuthority("ROLE_" + role.toUpperCase()))
+                                    .collect(Collectors.toList()));
+                        }
+                    }
+
+                    // ✅ 從Keycloak的resource_access提取客戶端角色
+                    Object resourceAccess = oidcUserAuthority.getIdToken().getClaim("resource_access");
+                    if (resourceAccess instanceof java.util.Map) {
+                        @SuppressWarnings("unchecked")
+                        java.util.Map<String, Object> resourceAccessMap = (java.util.Map<String, Object>) resourceAccess;
+                        Object clientAccess = resourceAccessMap.get("my-cloud-hub-ui");
+                        if (clientAccess instanceof java.util.Map) {
+                            @SuppressWarnings("unchecked")
+                            java.util.Map<String, Object> clientAccessMap = (java.util.Map<String, Object>) clientAccess;
+                            Object clientRoles = clientAccessMap.get("roles");
+                            if (clientRoles instanceof java.util.List) {
+                                @SuppressWarnings("unchecked")
+                                java.util.List<String> clientRoleList = (java.util.List<String>) clientRoles;
+                                mappedAuthorities.addAll(clientRoleList.stream()
+                                        .map(role -> new SimpleGrantedAuthority("ROLE_" + role.toUpperCase()))
+                                        .collect(Collectors.toList()));
+                            }
+                        }
                     }
                 } else {
                     mappedAuthorities.add(authority);
