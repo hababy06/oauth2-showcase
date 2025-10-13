@@ -1,6 +1,25 @@
 server:
   port: 8080
 
+spring:
+  security:
+    oauth2:
+      client:
+        registration:
+          my-cloud-hub-ui:
+            # 這裡的 provider 名稱可以自訂，例如 'my-auth-provider'
+            provider: my-auth-provider
+            client-id: my-client
+            # 使用 @...@ 語法來定義占位符
+            client-secret: "@client.secret@"
+            authorization-grant-type: authorization_code
+            redirect-uri: "{baseUrl}/login/oauth2/code/{registrationId}"
+            scope: openid, profile, read, write
+        provider:
+          my-auth-provider:
+            # 使用 @...@ 語法來定義占位符
+            issuer-uri: "@issuer.uri@"
+
 logging:
   level:
     root: INFO
