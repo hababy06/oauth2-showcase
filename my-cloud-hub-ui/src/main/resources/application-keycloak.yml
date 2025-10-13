@@ -1,0 +1,18 @@
+spring:
+  security:
+    oauth2:
+      client:
+        registration:
+          my-cloud-hub-ui:
+            provider: keycloak # 將 provider 名稱改為 keycloak
+            client-id: my-cloud-hub-ui
+            # 將這裡的 secret 換成您剛剛從 Keycloak UI 複製的 Client Secret
+            client-secret: 7DCTZmyLRKW7k3j7mVVlCyNU80MhYGDT
+            authorization-grant-type: authorization_code
+            redirect-uri: "{baseUrl}/login/oauth2/code/{registrationId}"
+            scope: openid, profile, email, roles # Keycloak 預設的 scope
+        provider:
+          # 定義一個名為 'keycloak' 的 provider
+          keycloak:
+            # issuer-uri 指向您在 Keycloak 建立的 Realm
+            issuer-uri: http://localhost:8180/realms/oauth2-showcase
