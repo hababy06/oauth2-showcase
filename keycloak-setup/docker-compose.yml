@@ -1,0 +1,13 @@
+version: '3.8'
+services:
+  keycloak:
+    image: quay.io/keycloak/keycloak:22.0.5 # 使用一個穩定的版本
+    container_name: keycloak-server
+    command: start-dev
+    environment:
+      - KEYCLOAK_ADMIN=admin      # 設定管理員帳號
+      - KEYCLOAK_ADMIN_PASSWORD=admin # 設定管理員密碼
+    ports:
+      - "8180:8080" # 將 Keycloak 的 8080 端口映射到您主機的 8180 端口
+    volumes:
+      - ./data:/opt/keycloak/data

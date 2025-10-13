@@ -123,14 +123,14 @@ public class SecurityConfig {
     @Bean
     public RegisteredClientRepository registeredClientRepository() {
         RegisteredClient registeredClient = RegisteredClient.withId(UUID.randomUUID().toString())
-                .clientId("my-client")
+                .clientId("my-cloud-hub-ui")
                 .clientSecret(passwordEncoder().encode("secret"))
                 .clientAuthenticationMethod(ClientAuthenticationMethod.CLIENT_SECRET_BASIC)
                 .authorizationGrantType(AuthorizationGrantType.AUTHORIZATION_CODE)
                 .authorizationGrantType(AuthorizationGrantType.REFRESH_TOKEN)
                 .authorizationGrantType(AuthorizationGrantType.CLIENT_CREDENTIALS)
-//                .redirectUri("http://127.0.0.1:8080/login/oauth2/code/my-client-oidc")
-                .redirectUri("http://localhost:8080/login/oauth2/code/my-client-oidc")
+//                .redirectUri("http://127.0.0.1:8080/login/oauth2/code/my-cloud-hub-ui")
+                .redirectUri("http://localhost:8080/login/oauth2/code/my-cloud-hub-ui")
                 .scope(OidcScopes.OPENID)
                 .scope("read")
                 .scope("write")
