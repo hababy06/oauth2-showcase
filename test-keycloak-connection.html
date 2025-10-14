@@ -1,0 +1,77 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Keycloak 連接測試</title>
+</head>
+<body>
+    <h1>Keycloak 連接測試</h1>
+    
+    <h2>1. 檢查 Keycloak 是否運行</h2>
+    <button onclick="testKeycloakConnection()">測試 Keycloak 連接</button>
+    <div id="keycloak-status"></div>
+    
+    <h2>2. 檢查 OIDC 配置</h2>
+    <button onclick="testOIDCConfig()">測試 OIDC 配置</button>
+    <div id="oidc-config"></div>
+    
+    <h2>3. 測試 Token 端點</h2>
+    <button onclick="testTokenEndpoint()">測試 Token 端點</button>
+    <div id="token-endpoint"></div>
+
+    <script>
+        async function testKeycloakConnection() {
+            const statusDiv = document.getElementById('keycloak-status');
+            try {
+                const response = await fetch('http://localhost:8180');
+                if (response.ok) {
+                    statusDiv.innerHTML = '<p style="color: green;">✅ Keycloak 運行正常</p>';
+                } else {
+                    statusDiv.innerHTML = `<p style="color: red;">❌ Keycloak 回應錯誤: ${response.status}</p>`;
+                }
+            } catch (error) {
+                statusDiv.innerHTML = `<p style="color: red;">❌ 無法連接到 Keycloak: ${error.message}</p>`;
+            }
+        }
+
+        async function testOIDCConfig() {
+            const configDiv = document.getElementById('oidc-config');
+            try {
+                const response = await fetch('http://localhost:8180/realms/oauth2-showcase/.well-known/openid_configuration');
+                if (response.ok) {
+                    const config = await response.json();
+                    configDiv.innerHTML = `
+                        <p style="color: green;">✅ OIDC 配置正常</p>
+                        <pre>${JSON.stringify(config, null, 2)}</pre>
+                    `;
+                } else {
+                    configDiv.innerHTML = `<p style="color: red;">❌ OIDC 配置錯誤: ${response.status}</p>`;
+                }
+            } catch (error) {
+                configDiv.innerHTML = `<p style="color: red;">❌ 無法獲取 OIDC 配置: ${error.message}</p>`;
+            }
+        }
+
+        async function testTokenEndpoint() {
+            const tokenDiv = document.getElementById('token-endpoint');
+            try {
+                // 測試 Token 端點是否可訪問（不需要實際獲取 token）
+                const response = await fetch('http://localhost:8180/realms/oauth2-showcase/protocol/openid-connect/token', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/x-www-form-urlencoded',
+                    },
+                    body: 'grant_type=invalid&client_id=test'
+                });
+                
+                if (response.status === 400) {
+                    tokenDiv.innerHTML = '<p style="color: green;">✅ Token 端點正常（返回 400 是預期的）</p>';
+                } else {
+                    tokenDiv.innerHTML = `<p style="color: orange;">⚠️ Token 端點回應: ${response.status}</p>`;
+                }
+            } catch (error) {
+                tokenDiv.innerHTML = `<p style="color: red;">❌ 無法訪問 Token 端點: ${error.message}</p>`;
+            }
+        }
+    </script>
+</body>
+</html>

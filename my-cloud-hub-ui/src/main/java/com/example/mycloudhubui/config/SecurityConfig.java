@@ -4,6 +4,8 @@ import jakarta.servlet.FilterChain;
 import jakarta.servlet.ServletException;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
@@ -22,6 +24,7 @@ import org.springframework.web.filter.OncePerRequestFilter;
 import java.io.IOException;
 import java.util.HashSet;
 import java.util.List;
+import java.util.Map;
 import java.util.Set;
 import java.util.stream.Collectors;
 
@@ -29,12 +32,14 @@ import java.util.stream.Collectors;
 @EnableWebSecurity
 public class SecurityConfig {
 
+    // ✅ Logger 定義在類別的最上方
+    private static final Logger logger = LoggerFactory.getLogger(SecurityConfig.class);
+
     @Bean
     public SecurityFilterChain securityFilterChain(HttpSecurity http) throws Exception {
-        // ✅ CSRF Token配置
         CookieCsrfTokenRepository tokenRepository = CookieCsrfTokenRepository.withHttpOnlyFalse();
         CsrfTokenRequestAttributeHandler requestHandler = new CsrfTokenRequestAttributeHandler();
-        requestHandler.setCsrfRequestAttributeName(null);  // 關閉延遲載入
+        requestHandler.setCsrfRequestAttributeName(null);
 
         http
                 .authorizeHttpRequests(authorize ->
@@ -43,14 +48,11 @@ public class SecurityConfig {
                 .csrf(csrf -> csrf
                         .csrfTokenRepository(tokenRepository)
                         .csrfTokenRequestHandler(requestHandler)
-                        // ✅ 忽略OAuth2回調路徑，避免Session切換時Token失效
                         .ignoringRequestMatchers("/login/oauth2/code/**")
                 )
-                // ✅ 確保每個請求都生成Token到Cookie
                 .addFilterAfter(new CsrfCookieFilter(), BasicAuthenticationFilter.class)
                 .oauth2Login(oauth2 -> oauth2
                         .userInfoEndpoint(userInfo -> userInfo
-                                // ✅ 從ID Token中提取authorities到Spring Security權限
                                 .userAuthoritiesMapper(userAuthoritiesMapper())
                         )
                 );
@@ -58,10 +60,6 @@ public class SecurityConfig {
         return http.build();
     }
 
-    /**
-     * ✅ CSRF Token過濾器：確保Token總是寫入Cookie
-     * 解決OAuth2登入後Session切換導致的Token失效問題
-     */
     private static final class CsrfCookieFilter extends OncePerRequestFilter {
         @Override
         protected void doFilterInternal(HttpServletRequest request,
@@ -70,16 +68,12 @@ public class SecurityConfig {
                 throws ServletException, IOException {
             CsrfToken csrfToken = (CsrfToken) request.getAttribute(CsrfToken.class.getName());
             if (csrfToken != null) {
-                csrfToken.getToken();  // 觸發Token載入並寫入Cookie
+                csrfToken.getToken();
             }
             filterChain.doFilter(request, response);
         }
     }
 
-    /**
-     * ✅ 權限映射器：從ID Token的authorities claim中提取權限
-     * 讓前端Thymeleaf的sec:authorize="hasRole('ADMIN')"能正常工作
-     */
     @Bean
     public GrantedAuthoritiesMapper userAuthoritiesMapper() {
         return (authorities) -> {
@@ -91,48 +85,23 @@ public class SecurityConfig {
                     OidcUserAuthority oidcUserAuthority = (OidcUserAuthority) authority;
                     mappedAuthorities.add(oidcUserAuthority);
 
-                    // ✅ 從ID Token的authorities claim提取自訂權限（Auth Server 模式）
+                    logger.info("=== 測試 Spring Authorization Server ===");
+                    logger.info("用戶: {}", oidcUserAuthority.getIdToken().getPreferredUsername());
+                    
+                    // ✅ 從 Spring Authorization Server 的 authorities claim 提取權限
                     List<String> customAuthorities = oidcUserAuthority.getIdToken().getClaim("authorities");
                     if (customAuthorities != null) {
+                        logger.info("找到 authorities claim: {}", customAuthorities);
                         mappedAuthorities.addAll(customAuthorities.stream()
                                 .map(SimpleGrantedAuthority::new)
                                 .collect(Collectors.toList()));
                     }
-
-                    // ✅ 從Keycloak的realm_access.roles提取角色（Keycloak 模式）
-                    Object realmAccess = oidcUserAuthority.getIdToken().getClaim("realm_access");
-                    if (realmAccess instanceof java.util.Map) {
-                        @SuppressWarnings("unchecked")
-                        java.util.Map<String, Object> realmAccessMap = (java.util.Map<String, Object>) realmAccess;
-                        Object roles = realmAccessMap.get("roles");
-                        if (roles instanceof java.util.List) {
-                            @SuppressWarnings("unchecked")
-                            java.util.List<String> roleList = (java.util.List<String>) roles;
-                            mappedAuthorities.addAll(roleList.stream()
-                                    .map(role -> new SimpleGrantedAuthority("ROLE_" + role.toUpperCase()))
-                                    .collect(Collectors.toList()));
-                        }
-                    }
-
-                    // ✅ 從Keycloak的resource_access提取客戶端角色
-                    Object resourceAccess = oidcUserAuthority.getIdToken().getClaim("resource_access");
-                    if (resourceAccess instanceof java.util.Map) {
-                        @SuppressWarnings("unchecked")
-                        java.util.Map<String, Object> resourceAccessMap = (java.util.Map<String, Object>) resourceAccess;
-                        Object clientAccess = resourceAccessMap.get("my-cloud-hub-ui");
-                        if (clientAccess instanceof java.util.Map) {
-                            @SuppressWarnings("unchecked")
-                            java.util.Map<String, Object> clientAccessMap = (java.util.Map<String, Object>) clientAccess;
-                            Object clientRoles = clientAccessMap.get("roles");
-                            if (clientRoles instanceof java.util.List) {
-                                @SuppressWarnings("unchecked")
-                                java.util.List<String> clientRoleList = (java.util.List<String>) clientRoles;
-                                mappedAuthorities.addAll(clientRoleList.stream()
-                                        .map(role -> new SimpleGrantedAuthority("ROLE_" + role.toUpperCase()))
-                                        .collect(Collectors.toList()));
-                            }
-                        }
-                    }
+                    
+                    logger.info("最終權限: {}", mappedAuthorities.stream()
+                            .map(GrantedAuthority::getAuthority)
+                            .collect(Collectors.toList()));
+                    logger.info("=== 測試完成 ===");
+                    
                 } else {
                     mappedAuthorities.add(authority);
                 }

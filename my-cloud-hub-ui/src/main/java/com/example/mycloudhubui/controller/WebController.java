@@ -8,11 +8,13 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.security.oauth2.core.oidc.user.OidcUser;
+import org.springframework.security.core.GrantedAuthority;
 import org.springframework.stereotype.Controller;
 import org.springframework.ui.Model;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.security.web.csrf.CsrfToken;
 import java.util.Map;
+import java.util.Collection;
 
 @Controller
 @RequiredArgsConstructor
@@ -40,6 +42,33 @@ public class WebController {
             // --- ✨ 新增結束 ---
         }
         return "index";
+    }
+
+    @GetMapping("/api/user/roles")
+    @ResponseBody
+    public ResponseEntity<Map<String, Object>> getUserRoles(@AuthenticationPrincipal OidcUser principal) {
+        if (principal == null) {
+            return ResponseEntity.status(401).body(Map.of("error", "未認證"));
+        }
+
+        // 獲取用戶的所有權限
+        Collection<? extends GrantedAuthority> authorities = principal.getAuthorities();
+        
+        // 獲取 ID Token 中的原始 claims
+        Map<String, Object> idTokenClaims = principal.getIdToken().getClaims();
+        
+        Map<String, Object> response = Map.of(
+            "username", principal.getPreferredUsername(),
+            "authorities", authorities.stream()
+                    .map(GrantedAuthority::getAuthority)
+                    .toList(),
+            "realm_access", idTokenClaims.get("realm_access"),
+            "resource_access", idTokenClaims.get("resource_access"),
+            "profile", idTokenClaims.get("profile"),
+            "authorities_claim", idTokenClaims.get("authorities")
+        );
+        
+        return ResponseEntity.ok(response);
     }
 
     @DeleteMapping("/api/notes/{id}")
