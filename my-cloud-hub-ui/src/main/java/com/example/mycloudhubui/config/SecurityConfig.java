@@ -6,6 +6,7 @@ import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
@@ -36,7 +37,9 @@ public class SecurityConfig {
     private static final Logger logger = LoggerFactory.getLogger(SecurityConfig.class);
 
     @Bean
-    public SecurityFilterChain securityFilterChain(HttpSecurity http) throws Exception {
+    public SecurityFilterChain securityFilterChain(HttpSecurity http, 
+                                                   @org.springframework.beans.factory.annotation.Qualifier("userAuthoritiesMapper") 
+                                                   GrantedAuthoritiesMapper authoritiesMapper) throws Exception {
         CookieCsrfTokenRepository tokenRepository = CookieCsrfTokenRepository.withHttpOnlyFalse();
         CsrfTokenRequestAttributeHandler requestHandler = new CsrfTokenRequestAttributeHandler();
         requestHandler.setCsrfRequestAttributeName(null);
@@ -53,7 +56,7 @@ public class SecurityConfig {
                 .addFilterAfter(new CsrfCookieFilter(), BasicAuthenticationFilter.class)
                 .oauth2Login(oauth2 -> oauth2
                         .userInfoEndpoint(userInfo -> userInfo
-                                .userAuthoritiesMapper(userAuthoritiesMapper())
+                                .userAuthoritiesMapper(authoritiesMapper)
                         )
                 );
 
@@ -74,18 +77,19 @@ public class SecurityConfig {
         }
     }
 
-    @Bean
+    // ==================== Spring Authorization Server 配置 ====================
+    @Bean(name = "userAuthoritiesMapper")
+    @ConditionalOnProperty(name = "auth.type", havingValue = "spring-authz", matchIfMissing = true)
     public GrantedAuthoritiesMapper userAuthoritiesMapper() {
         return (authorities) -> {
             Set<GrantedAuthority> mappedAuthorities = new HashSet<>();
 
             authorities.forEach(authority -> {
-                // 保留OIDC預設權限
                 if (authority instanceof OidcUserAuthority) {
                     OidcUserAuthority oidcUserAuthority = (OidcUserAuthority) authority;
                     mappedAuthorities.add(oidcUserAuthority);
 
-                    logger.info("=== 測試 Spring Authorization Server ===");
+                    logger.info("=== Spring Authorization Server 權限提取 ===");
                     logger.info("用戶: {}", oidcUserAuthority.getIdToken().getPreferredUsername());
                     
                     // ✅ 從 Spring Authorization Server 的 authorities claim 提取權限
@@ -100,7 +104,63 @@ public class SecurityConfig {
                     logger.info("最終權限: {}", mappedAuthorities.stream()
                             .map(GrantedAuthority::getAuthority)
                             .collect(Collectors.toList()));
-                    logger.info("=== 測試完成 ===");
+                    logger.info("=== Spring Authorization Server 權限提取完成 ===");
+                    
+                } else {
+                    mappedAuthorities.add(authority);
+                }
+            });
+
+            return mappedAuthorities;
+        };
+    }
+
+    // ==================== Keycloak 配置 ====================
+    @Bean(name = "userAuthoritiesMapper")
+    @ConditionalOnProperty(name = "auth.type", havingValue = "keycloak")
+    public GrantedAuthoritiesMapper keycloakUserAuthoritiesMapper() {
+        return (authorities) -> {
+            Set<GrantedAuthority> mappedAuthorities = new HashSet<>();
+
+            authorities.forEach(authority -> {
+                if (authority instanceof OidcUserAuthority) {
+                    OidcUserAuthority oidcUserAuthority = (OidcUserAuthority) authority;
+                    mappedAuthorities.add(oidcUserAuthority);
+
+                    logger.info("=== Keycloak 權限提取 ===");
+                    logger.info("用戶: {}", oidcUserAuthority.getIdToken().getPreferredUsername());
+                    
+                    // ✅ 從 Keycloak 的 realm_access.roles 提取權限
+                    Map<String, Object> realmAccess = oidcUserAuthority.getIdToken().getClaim("realm_access");
+                    if (realmAccess != null) {
+                        List<String> realmRoles = (List<String>) realmAccess.get("roles");
+                        if (realmRoles != null) {
+                            logger.info("Realm 角色: {}", realmRoles);
+                            mappedAuthorities.addAll(realmRoles.stream()
+                                    .map(role -> new SimpleGrantedAuthority("ROLE_" + role))
+                                    .collect(Collectors.toList()));
+                        }
+                    }
+                    
+                    // ✅ 從 Keycloak 的 resource_access.{client-id}.roles 提取權限
+                    Map<String, Object> resourceAccess = oidcUserAuthority.getIdToken().getClaim("resource_access");
+                    if (resourceAccess != null) {
+                        Map<String, Object> clientResource = (Map<String, Object>) resourceAccess.get("my-cloud-hub-ui");
+                        if (clientResource != null) {
+                            List<String> clientRoles = (List<String>) clientResource.get("roles");
+                            if (clientRoles != null) {
+                                logger.info("Client 角色: {}", clientRoles);
+                                mappedAuthorities.addAll(clientRoles.stream()
+                                        .map(role -> new SimpleGrantedAuthority("ROLE_" + role))
+                                        .collect(Collectors.toList()));
+                            }
+                        }
+                    }
+                    
+                    logger.info("最終權限: {}", mappedAuthorities.stream()
+                            .map(GrantedAuthority::getAuthority)
+                            .collect(Collectors.toList()));
+                    logger.info("=== Keycloak 權限提取完成 ===");
                     
                 } else {
                     mappedAuthorities.add(authority);
