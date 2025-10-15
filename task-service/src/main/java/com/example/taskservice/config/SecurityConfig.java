@@ -56,6 +56,33 @@ public class SecurityConfig {
         return jwtAuthenticationConverter;
     }
 
+    // ==================== 輔助方法 ====================
+    private Collection<GrantedAuthority> extractRolesSafely(Object rolesObject) {
+        Collection<GrantedAuthority> extractedAuthorities = new HashSet<>();
+        if (rolesObject == null) {
+            return extractedAuthorities;
+        }
+
+        if (rolesObject instanceof List) {
+            List<?> rolesList = (List<?>) rolesObject;
+            for (Object item : rolesList) {
+                if (item instanceof String) {
+                    extractedAuthorities.add(new SimpleGrantedAuthority("ROLE_" + item));
+                } else if (item instanceof List) { // 處理嵌套的 List
+                    List<?> nestedList = (List<?>) item;
+                    for (Object nestedItem : nestedList) {
+                        if (nestedItem instanceof String) {
+                            extractedAuthorities.add(new SimpleGrantedAuthority("ROLE_" + nestedItem));
+                        }
+                    }
+                }
+            }
+        } else if (rolesObject instanceof String) {
+            extractedAuthorities.add(new SimpleGrantedAuthority("ROLE_" + rolesObject));
+        }
+        return extractedAuthorities;
+    }
+
     // ==================== Keycloak 配置 ====================
     @Bean(name = "jwtAuthenticationConverter")
     @ConditionalOnProperty(name = "auth.type", havingValue = "keycloak")
@@ -81,21 +108,8 @@ public class SecurityConfig {
                 Map<String, Object> realmAccess = jwt.getClaim("realm_access");
                 if (realmAccess != null) {
                     Object rolesObj = realmAccess.get("roles");
-                    if (rolesObj != null) {
-                        List<String> realmRoles;
-                        if (rolesObj instanceof List) {
-                            realmRoles = (List<String>) rolesObj;
-                        } else if (rolesObj instanceof String) {
-                            // 如果是單個字串，轉換為 List
-                            realmRoles = List.of((String) rolesObj);
-                        } else {
-                            realmRoles = new ArrayList<>();
-                        }
-                        System.out.println("Realm 角色: " + realmRoles);
-                        authorities.addAll(realmRoles.stream()
-                                .map(role -> new SimpleGrantedAuthority("ROLE_" + role))
-                                .collect(Collectors.toList()));
-                    }
+                    System.out.println("Realm 角色: " + rolesObj);
+                    authorities.addAll(extractRolesSafely(rolesObj));
                 }
 
                 // ✅ Keycloak：從 resource_access.{client-id}.roles 提取
@@ -104,21 +118,8 @@ public class SecurityConfig {
                     Map<String, Object> clientResource = (Map<String, Object>) resourceAccess.get("my-cloud-hub-ui");
                     if (clientResource != null) {
                         Object clientRolesObj = clientResource.get("roles");
-                        if (clientRolesObj != null) {
-                            List<String> clientRoles;
-                            if (clientRolesObj instanceof List) {
-                                clientRoles = (List<String>) clientRolesObj;
-                            } else if (clientRolesObj instanceof String) {
-                                // 如果是單個字串，轉換為 List
-                                clientRoles = List.of((String) clientRolesObj);
-                            } else {
-                                clientRoles = new ArrayList<>();
-                            }
-                            System.out.println("Client 角色: " + clientRoles);
-                            authorities.addAll(clientRoles.stream()
-                                    .map(role -> new SimpleGrantedAuthority("ROLE_" + role))
-                                    .collect(Collectors.toList()));
-                        }
+                        System.out.println("Client 角色: " + clientRolesObj);
+                        authorities.addAll(extractRolesSafely(clientRolesObj));
                     }
                 }
 

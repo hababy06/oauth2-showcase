@@ -23,10 +23,7 @@ import org.springframework.security.web.csrf.CsrfTokenRequestAttributeHandler;
 import org.springframework.web.filter.OncePerRequestFilter;
 
 import java.io.IOException;
-import java.util.HashSet;
-import java.util.List;
-import java.util.Map;
-import java.util.Set;
+import java.util.*;
 import java.util.stream.Collectors;
 
 @Configuration
@@ -115,6 +112,33 @@ public class SecurityConfig {
         };
     }
 
+    // ==================== 輔助方法 ====================
+    private Collection<GrantedAuthority> extractRolesSafely(Object rolesObject) {
+        Collection<GrantedAuthority> extractedAuthorities = new HashSet<>();
+        if (rolesObject == null) {
+            return extractedAuthorities;
+        }
+
+        if (rolesObject instanceof List) {
+            List<?> rolesList = (List<?>) rolesObject;
+            for (Object item : rolesList) {
+                if (item instanceof String) {
+                    extractedAuthorities.add(new SimpleGrantedAuthority("ROLE_" + item));
+                } else if (item instanceof List) { // 處理嵌套的 List
+                    List<?> nestedList = (List<?>) item;
+                    for (Object nestedItem : nestedList) {
+                        if (nestedItem instanceof String) {
+                            extractedAuthorities.add(new SimpleGrantedAuthority("ROLE_" + nestedItem));
+                        }
+                    }
+                }
+            }
+        } else if (rolesObject instanceof String) {
+            extractedAuthorities.add(new SimpleGrantedAuthority("ROLE_" + rolesObject));
+        }
+        return extractedAuthorities;
+    }
+
     // ==================== Keycloak 配置 ====================
     @Bean(name = "userAuthoritiesMapper")
     @ConditionalOnProperty(name = "auth.type", havingValue = "keycloak")
@@ -133,13 +157,9 @@ public class SecurityConfig {
                     // ✅ 從 Keycloak 的 realm_access.roles 提取權限
                     Map<String, Object> realmAccess = oidcUserAuthority.getIdToken().getClaim("realm_access");
                     if (realmAccess != null) {
-                        List<String> realmRoles = (List<String>) realmAccess.get("roles");
-                        if (realmRoles != null) {
-                            logger.info("Realm 角色: {}", realmRoles);
-                            mappedAuthorities.addAll(realmRoles.stream()
-                                    .map(role -> new SimpleGrantedAuthority("ROLE_" + role))
-                                    .collect(Collectors.toList()));
-                        }
+                        Object rolesObj = realmAccess.get("roles");
+                        logger.info("Realm 角色: {}", rolesObj);
+                        mappedAuthorities.addAll(extractRolesSafely(rolesObj));
                     }
                     
                     // ✅ 從 Keycloak 的 resource_access.{client-id}.roles 提取權限
@@ -147,13 +167,9 @@ public class SecurityConfig {
                     if (resourceAccess != null) {
                         Map<String, Object> clientResource = (Map<String, Object>) resourceAccess.get("my-cloud-hub-ui");
                         if (clientResource != null) {
-                            List<String> clientRoles = (List<String>) clientResource.get("roles");
-                            if (clientRoles != null) {
-                                logger.info("Client 角色: {}", clientRoles);
-                                mappedAuthorities.addAll(clientRoles.stream()
-                                        .map(role -> new SimpleGrantedAuthority("ROLE_" + role))
-                                        .collect(Collectors.toList()));
-                            }
+                            Object clientRolesObj = clientResource.get("roles");
+                            logger.info("Client 角色: {}", clientRolesObj);
+                            mappedAuthorities.addAll(extractRolesSafely(clientRolesObj));
                         }
                     }
                     
