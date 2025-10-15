@@ -58,7 +58,7 @@
 
 	<build>
 		<filters>
-			<filter>${project.parent.basedir}/profiles/application-${env}.properties</filter>
+			<filter>../profiles/application-${env}.properties</filter>
 		</filters>
 		<resources>
 			<resource>
